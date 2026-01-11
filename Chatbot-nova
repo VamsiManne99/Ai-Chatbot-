@@ -1,0 +1,60 @@
+from google import genai
+from memory import init_db, save_memory, load_memory
+
+client = genai.Client(api_key="AIzaSyAt1bCeE3sWQssaCTmWKTB7iJYOG1kez7U")
+
+init_db()
+
+def detect_tone(text):
+    text = text.lower()
+    if any(word in text for word in ["sad", "down", "upset", "tired"]):
+        return "empathetic"
+    if any(word in text for word in ["joke", "roast", "funny"]):
+        return "playful"
+    return "friendly"
+
+def extract_memory(text):
+    text = text.lower()
+    if "my name is" in text:
+        save_memory("name", text.split("my name is")[-1].strip())
+    if "i live in" in text:
+        save_memory("city", text.split("i live in")[-1].strip())
+    if "i like" in text:
+        save_memory("interest", text.split("i like")[-1].strip())
+
+print("Nova is online. Type 'exit' to stop.\n")
+
+while True:
+    user = input("You: ")
+    if user.lower() == "exit":
+        break
+
+    extract_memory(user)
+    memory = load_memory()
+    tone = detect_tone(user)
+
+    memory_text = ""
+    if memory:
+        memory_text = "You remember these facts about the user:\n"
+        for k, v in memory.items():
+            memory_text += f"- {k}: {v}\n"
+
+    prompt = f"""
+You are Nova.
+
+{memory_text}
+
+Respond in a {tone} tone.
+Speak naturally like a human.
+Never say you are an AI.
+
+User: {user}
+Nova:
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    print("Nova:", response.text)
